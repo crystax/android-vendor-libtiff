@@ -1,13 +1,12 @@
 <HTML>
 <HEAD>
 <TITLE>
-	Changes in TIFF v3.7.0beta2
+	Changes in TIFF v4.0.3
 </TITLE>
 </HEAD>
 
 <BODY BGCOLOR=white>
 <FONT FACE="Helvetica, Arial, Sans">
-<FONT FACE="Helvetica, Arial, Sans"> 
 
 <BASEFONT SIZE=4>
 <B><FONT SIZE=+3>T</FONT>IFF <FONT SIZE=+2>C</FONT>HANGE <FONT SIZE=+2>I</FONT>NFORMATION</B>
@@ -15,8 +14,8 @@
 
 <UL>
 <HR SIZE=4 WIDTH=65% ALIGN=left>
-<B>Current Version</B>: v3.7.0beta2<BR>
-<B>Previous Version</B>: <A HREF=v3.7.0beta.html>v3.7.0beta</a><BR>
+<B>Current Version</B>: v4.0.3<BR>
+<B>Previous Version</B>: <A HREF=v4.0.2.html>v4.0.2</a><BR>
 <B>Master FTP Site</B>: <A HREF="ftp://ftp.remotesensing.org/pub/libtiff">
 ftp.remotesensing.org</a>, directory pub/libtiff</A><BR>
 <B>Master HTTP Site</B>: <A HREF="http://www.remotesensing.org/libtiff">
@@ -26,17 +25,16 @@ http://www.remotesensing.org/libtiff</a>
 
 <P>
 This document describes the changes made to the software between the
-<I>previous</I> and <I>current</I> versions (see above).
-If you don't find something listed here, then it was not done in this
-timeframe, or it was not considered important enough to be mentioned.
-The following information is located here:
+<I>previous</I> and <I>current</I> versions (see above).  If you don't
+find something listed here, then it was not done in this timeframe, or
+it was not considered important enough to be mentioned.  The following
+information is located here:
 <UL>
-<LI><A HREF="#hightlights">Major Changes</A>
+<LI><A HREF="#highlights">Major Changes</A>
 <LI><A HREF="#configure">Changes in the software configuration</A>
 <LI><A HREF="#libtiff">Changes in libtiff</A>
 <LI><A HREF="#tools">Changes in the tools</A>
 <LI><A HREF="#contrib">Changes in the contrib area</A>
-<LI><A HREF="#lzwkit">Changes in the LZW compression kit</A>
 </UL>
 <p> 
 <P><HR WIDTH=65% ALIGN=left>
@@ -47,9 +45,7 @@ The following information is located here:
 
 <UL>
 
-	<li> The code has been reviewed by Dmitry Levin: added checks
-	for values, returned by the space allocation functions, fixed
-	problems with the possible integer overflows.
+	<li> None
 
 </UL>
 
@@ -60,7 +56,10 @@ The following information is located here:
 <A NAME="configure"><B><FONT SIZE=+3>C</FONT>HANGES IN THE SOFTWARE CONFIGURATION:</B></A>
 
 <UL>
-	<li> Several fixes in the test suite.
+
+  <li> Updated to use Automake 1.12.4.  Avoids security problem with
+  'make distcheck' (CVE-2012-3386).
+
 </UL>
 
 <P><HR WIDTH=65% ALIGN=left>
@@ -71,19 +70,22 @@ The following information is located here:
 
 <UL>
 
-	<li> Preliminary support for BigTIFF files: now libtiff can
-	recognize and reject to open such images. ;-)
+  <li> Various memory buffer access fixes.
 
-	<li> libtiff/tif_dirinfo.c: changed type of XMLPacket (tag 700) to 
-	TIFFTAG_BYTE instead of TIFFTAG_UNDEFINED to comply with the info
-	in the Adobe XMP Specification.
+  <li> Fix handling when writing RGBA jpeg compressed imagery
+  (<A HREF="http://trac.osgeo.org/gdal/ticket/4732">http://trac.osgeo.org/gdal/ticket/4732</A>).
 
-	<li> Added many checks for integer overflow and for successful space
-	allocations in the different parts of library. Code review
-	completed by Dmitry V. Levin.
+  <li> Fix to work properly with IJG JPEG 7+.
 
-	<li> libtiff/{tiffio.h, tif_compress.c}: Added
-	TIFFGetConfiguredCODECs()function to get the list of configured codecs.
+  <li> New functions TIFFFieldTag(), TIFFFieldName(),
+  TIFFFieldDataType(), TIFFFieldPassCount(), TIFFFieldReadCount(),
+  TIFFFieldWriteCount() to use as external accessors for the opaque
+  type TIFFField.
+
+  <li> Fix bug rewriting image tiles in a compressed
+  file (<A HREF="http://trac.osgeo.org/gdal/ticket/4771">http://trac.osgeo.org/gdal/ticket/4771</A>).
+
+  <li> Add TIFF/FX tag support in libtiff.
 
 </UL>
 
@@ -94,8 +96,14 @@ The following information is located here:
 <A NAME="tools"><B><FONT SIZE=+3>C</FONT>HANGES IN THE TOOLS:</B></A>
 
 <UL>
-	<li> tiff2bw: Write ImageWidth/Height tags to output file, as
-	noted by Gennady Khokhorin.
+
+  <li> tiff2pdf: Fail when TIFFSetDirectory() fails.  This prevents
+  core dumps or perhaps even arbitrary code execution when processing
+  a corrupt input file (CVE-2012-3401).
+
+  <li> tiff2pdf: Fix two places where t2p_error didn't get set after a
+  malloc failure.  No crash risk AFAICS, but the program might not
+  report exit code 1 as desired.
 
 </UL>
 
@@ -107,25 +115,11 @@ The following information is located here:
 
 <UL> 
 
-	<li> No changes.
+	<li> None
 
 </UL>
 
-<!--------------------------------------------------------------------------->
-
-<A NAME="lzwkit"><B><FONT SIZE=+3>C</FONT>HANGES IN THE LZW COMPRESSION
-KIT:</B></A>
-<UL> 
-
-	<li> This one is not longer needed.
-
-</UL>
-
-<A HREF="index.html"><IMG SRC="images/back.gif"></A> TIFF home page.<BR>
-
-<HR>
-
-Last updated $Date: 2006-03-18 17:12:47 $.
+Last updated $Date: 2012-09-22 16:12:44 $.
 
 </BODY>
 </HTML>

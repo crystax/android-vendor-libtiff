@@ -1,4 +1,4 @@
-/* $Id: tiffdither.c,v 1.12 2010-03-10 18:56:50 bfriesen Exp $ */
+/* $Id: tiffdither.c,v 1.14 2013-05-02 14:44:29 tgl Exp $ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -260,7 +260,7 @@ main(int argc, char* argv[])
 		TIFFSetField(out, TIFFTAG_FILLORDER, fillorder);
 	else
 		CopyField(TIFFTAG_FILLORDER, shortv);
-	sprintf(thing, "Dithered B&W version of %s", argv[optind]);
+	snprintf(thing, sizeof(thing), "Dithered B&W version of %s", argv[optind]);
 	TIFFSetField(out, TIFFTAG_IMAGEDESCRIPTION, thing);
 	CopyField(TIFFTAG_PHOTOMETRIC, shortv);
 	CopyField(TIFFTAG_ORIENTATION, shortv);
@@ -289,6 +289,7 @@ char* stuff[] = {
 "usage: tiffdither [options] input.tif output.tif",
 "where options are:",
 " -r #		make each strip have no more than # rows",
+" -t #		set the threshold value for dithering (default 128)",
 " -f lsb2msb	force lsb-to-msb FillOrder for output",
 " -f msb2lsb	force msb-to-lsb FillOrder for output",
 " -c lzw[:opts]	compress output with Lempel-Ziv & Welch encoding",

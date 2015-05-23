@@ -1,4 +1,4 @@
-/* $Id: tiff2ps.c,v 1.49 2011-05-31 17:10:18 bfriesen Exp $ */
+/* $Id: tiff2ps.c,v 1.52 2013-05-02 14:44:29 tgl Exp $ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -44,6 +44,11 @@
 
 /*
  * Revision history
+ * 2013-Jan-21
+ *    Richard Nolde: Fix bug in auto rotate option code. Once a
+ *    rotation angle was set by the auto rotate check, it was
+ *    retained for all pages that followed instead of being
+ *    retested for each page.
  *
  * 2010-Sep-17
  *    Richard Nolde: Reinstate code from Feb 2009 that never got
@@ -255,9 +260,9 @@ main(int argc, char* argv[])
 		case 'c':
 			centered = 1;
 			break;
-                case 'C':
-                        creator = optarg;
-                        break;
+		case 'C':
+			creator = optarg;
+			break;
 		case 'd': /* without -a, this only processes one image at this IFD */
 			dirnum = atoi(optarg);
 			break;
@@ -423,9 +428,10 @@ main(int argc, char* argv[])
         /* auto rotate requires a specified page width and height */
         if (auto_rotate == TRUE)
           {
+	    /*
 	  if ((pageWidth == 0) || (pageHeight == 0))
 	    TIFFWarning ("-r auto", " requires page height and width specified with -h and -w");
-
+	    */
           if ((maxPageWidth > 0) || (maxPageHeight > 0))
             {
 	    TIFFError ("-r auto", " is incompatible with maximum page width/height specified by -H or -W");
@@ -1592,6 +1598,8 @@ int TIFF2PS(FILE* fd, TIFF* tif, double pgwidth, double pgheight, double lm, dou
        }
   if (generateEPSF)
     break;
+  if (auto_rotate)
+    rotation = 0.0;
   TIFFGetFieldDefaulted(tif, TIFFTAG_SUBFILETYPE, &subfiletype);
   } while (((subfiletype & FILETYPE_PAGE) || printAll) && TIFFReadDirectory(tif));
 
@@ -1781,8 +1789,8 @@ PS_Lvl2ImageDict(FILE* fd, TIFF* tif, uint32 w, uint32 h)
 		imageOp = "imagemask";
 
 	(void)strcpy(im_x, "0");
-	(void)sprintf(im_y, "%lu", (long) h);
-	(void)sprintf(im_h, "%lu", (long) h);
+	(void)snprintf(im_y, sizeof(im_y), "%lu", (long) h);
+	(void)snprintf(im_h, sizeof(im_h), "%lu", (long) h);
 	tile_width = w;
 	tile_height = h;
 	if (TIFFIsTiled(tif)) {
@@ -1803,7 +1811,7 @@ PS_Lvl2ImageDict(FILE* fd, TIFF* tif, uint32 w, uint32 h)
 		}
 		if (tile_height < h) {
 			fputs("/im_y 0 def\n", fd);
-			(void)sprintf(im_y, "%lu im_y sub", (unsigned long) h);
+			(void)snprintf(im_y, sizeof(im_y), "%lu im_y sub", (unsigned long) h);
 		}
 	} else {
 		repeat_count = tf_numberstrips;
@@ -1815,7 +1823,7 @@ PS_Lvl2ImageDict(FILE* fd, TIFF* tif, uint32 w, uint32 h)
 			fprintf(fd, "/im_h %lu def\n",
 			    (unsigned long) tile_height);
 			(void)strcpy(im_h, "im_h");
-			(void)sprintf(im_y, "%lu im_y sub", (unsigned long) h);
+			(void)snprintf(im_y, sizeof(im_y), "%lu im_y sub", (unsigned long) h);
 		}
 	}
 
@@ -3033,13 +3041,13 @@ char* stuff[] = {
 " -a            convert all directories in file (default is first), Not EPS",
 " -b #          set the bottom margin to # inches",
 " -c            center image (-b and -l still add to this)",
+" -C name       set postscript document creator name",
 " -d #          set initial directory to # counting from zero",
 " -D            enable duplex printing (two pages per sheet of paper)",
 " -e            generate Encapsulated PostScript (EPS) (implies -z)",
 " -h #          set printed page height to # inches (no default)",
 " -w #          set printed page width to # inches (no default)",
 " -H #          split image if height is more than # inches",
-" -P L or P     set optional PageOrientation DSC comment to Landscape or Portrait",
 " -W #          split image if width is more than # inches",
 " -L #          overLap split images by # inches",
 " -i #          enable/disable (Nz/0) pixel interpolation (default: enable)",
@@ -3047,7 +3055,8 @@ char* stuff[] = {
 " -m            use \"imagemask\" operator instead of \"image\"",
 " -o #          convert directory at file offset # bytes",
 " -O file       write PostScript to file instead of standard output",
-" -p            generate regular PostScript",
+" -p            generate regular (non-encapsulated) PostScript",
+" -P L or P     set optional PageOrientation DSC comment to Landscape or Portrait",
 " -r # or auto  rotate by 90, 180, 270 degrees or auto",
 " -s            generate PostScript for a single image",
 " -t name       set postscript document title. Otherwise the filename is used",
