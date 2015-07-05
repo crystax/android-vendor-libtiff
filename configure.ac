@@ -25,7 +25,7 @@ dnl OF THIS SOFTWARE.
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.64)
-AC_INIT([LibTIFF Software],[4.0.4beta],[tiff@lists.maptools.org],[tiff])
+AC_INIT([LibTIFF Software],[4.0.4],[tiff@lists.maptools.org],[tiff])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(m4)
 AC_LANG(C)
@@ -42,7 +42,7 @@ dnl Don't fill the ALPHA_VERSION field, if not applicable.
 LIBTIFF_MAJOR_VERSION=4
 LIBTIFF_MINOR_VERSION=0
 LIBTIFF_MICRO_VERSION=4
-LIBTIFF_ALPHA_VERSION=beta
+LIBTIFF_ALPHA_VERSION=
 LIBTIFF_VERSION=$LIBTIFF_MAJOR_VERSION.$LIBTIFF_MINOR_VERSION.$LIBTIFF_MICRO_VERSION$LIBTIFF_ALPHA_VERSION
 dnl This will be used with the 'make release' target
 LIBTIFF_RELEASE_DATE=`date +"%Y%m%d"`
@@ -77,7 +77,7 @@ dnl     increment age.
 dnl  6. If any interfaces have been removed since the last public release,
 dnl     then set age to 0.                                
 LIBTIFF_CURRENT=7
-LIBTIFF_REVISION=1
+LIBTIFF_REVISION=2
 LIBTIFF_AGE=2
 LIBTIFF_VERSION_INFO=$LIBTIFF_CURRENT:$LIBTIFF_REVISION:$LIBTIFF_AGE
 
@@ -182,6 +182,9 @@ AC_TYPE_SIZE_T
 AC_HEADER_TIME
 AC_STRUCT_TM
 
+dnl Check if optarg (and presumably related externs) already declared in headers
+AC_CHECK_DECLS([optarg])
+
 dnl ---------------------------------------------------------------------------
 dnl Compute sized types for current CPU and compiler options
 dnl ---------------------------------------------------------------------------
@@ -217,6 +220,10 @@ AC_CHECK_SIZEOF(unsigned long long)
 # SIZEOF_UNSIGNED_CHAR_P.  Result is available in
 # ac_cv_sizeof_unsigned_char_p.
 AC_CHECK_SIZEOF(unsigned char *)
+
+# Obtain the size of 'size_t' and define as SIZEOF_SIZE_T.  Result is
+# available in ac_cv_sizeof_size_t
+AC_CHECK_SIZEOF([size_t])
 
 AC_MSG_CHECKING(for signed 8-bit type)
 INT8_T='signed char'
@@ -321,18 +328,62 @@ AC_MSG_RESULT($UINT64_T)
 AC_DEFINE_UNQUOTED(TIFF_UINT64_T,$UINT64_T,[Unsigned 64-bit type])
 AC_DEFINE_UNQUOTED(TIFF_UINT64_FORMAT,$UINT64_FORMAT,[Unsigned 64-bit type formatter])
 
+# Determine formatting specifier for 'size_t'.  While the size should
+# be precise, the type determined may not match the system definition.
+# A named type is provided to allow casting to the type we determined
+# without changing the actual size.
+AC_MSG_CHECKING([for 'size_t' format specifier])
+SIZE_T='unknown'
+SIZE_FORMAT='unknown'
+if test $ac_cv_sizeof_unsigned_int -eq $ac_cv_sizeof_size_t
+then
+  SIZE_T='unsigned int'
+  SIZE_FORMAT='"%u"'
+elif test $ac_cv_sizeof_unsigned_long -eq $ac_cv_sizeof_size_t
+then
+  SIZE_T='unsigned long'
+  SIZE_FORMAT='"%lu"'
+elif test $ac_cv_sizeof_unsigned_long_long -eq $ac_cv_sizeof_size_t
+then
+  SIZE_T='unsigned long long'
+  case "${host_os}" in
+    mingw32*)
+      # MinGW32 understands 'unsigned long long', but uses printf from WIN32 CRT
+      SIZE_FORMAT='"%I64u"'
+      ;;
+    *)
+      SIZE_FORMAT='"%llu"'
+      ;;
+  esac
+fi
+AC_MSG_RESULT([$SIZE_FORMAT])
+AC_DEFINE_UNQUOTED([TIFF_SIZE_T],[$SIZE_T],[Unsigned size type])
+AC_DEFINE_UNQUOTED([TIFF_SIZE_FORMAT],[$SIZE_FORMAT],[Size type formatter])
+
 # Determine TIFF equivalent of ssize_t
 AC_MSG_CHECKING(for signed size type)
 SSIZE_T='unknown'
 SSIZE_FORMAT='unknown'
-if test $ac_cv_sizeof_signed_long -eq $ac_cv_sizeof_unsigned_char_p
+if test $ac_cv_sizeof_signed_int -eq $ac_cv_sizeof_unsigned_char_p
+then
+  SSIZE_T='signed int'
+  SSIZE_FORMAT='"%d"'
+elif test $ac_cv_sizeof_signed_long -eq $ac_cv_sizeof_unsigned_char_p
 then
   SSIZE_T='signed long'
   SSIZE_FORMAT='"%ld"'
 elif test $ac_cv_sizeof_signed_long_long -eq $ac_cv_sizeof_unsigned_char_p
 then
   SSIZE_T='signed long long'
-  SSIZE_FORMAT='"%lld"'
+  case "${host_os}" in
+    mingw32*)
+      # MinGW32 understands 'long long', but uses printf from WIN32 CRT
+      SSIZE_FORMAT='"%I64d"'
+      ;;
+    *)
+      SSIZE_FORMAT='"%lld"'
+      ;;
+  esac
 fi
 AC_MSG_RESULT($SSIZE_T)
 AC_DEFINE_UNQUOTED(TIFF_SSIZE_T,$SSIZE_T,[Signed size type])
@@ -363,7 +414,8 @@ AC_CHECK_TYPES([int8, int16, int32],,,
 ])
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS([floor isascii memmove memset mmap pow setmode sqrt strchr strrchr strstr strtol strtoull])
+AC_CHECK_FUNCS([floor isascii memmove memset mmap pow setmode sqrt\
+ strchr strrchr strstr strtol strtoull])
 
 dnl Will use local replacements for unavailable functions
 AC_REPLACE_FUNCS(getopt)
@@ -636,6 +688,8 @@ if test "$HAVE_JPEG" = "yes" ; then
 
 fi
 
+AM_CONDITIONAL(HAVE_JPEG, test "$HAVE_JPEG" = 'yes')
+
 dnl ---------------------------------------------------------------------------
 dnl Check for Old JPEG.
 dnl ---------------------------------------------------------------------------
@@ -708,6 +762,8 @@ if test "$HAVE_JBIG" = "yes" ; then
 
 fi
 
+AM_CONDITIONAL(HAVE_JBIG, test "$HAVE_JBIG" = 'yes')
+
 dnl ---------------------------------------------------------------------------
 dnl Check for liblzma2.
 dnl ---------------------------------------------------------------------------
@@ -760,6 +816,8 @@ if test "$HAVE_LZMA" = "yes" ; then
 
 fi
 
+AM_CONDITIONAL(HAVE_LZMA, test "$HAVE_LZMA" = 'yes')
+
 dnl ---------------------------------------------------------------------------
 dnl Should 8/12 bit jpeg mode be enabled?
 dnl ---------------------------------------------------------------------------
@@ -776,7 +834,7 @@ AC_ARG_WITH(jpeg12-lib,
 	    AS_HELP_STRING([--with-jpeg12-lib=LIBRARY],
 			   [path to libjpeg 12bit library]),,)
 
-if test "x$enable_jpeg12" == "xyes" ; then
+if test "x$enable_jpeg12" = "xyes" ; then
 
   if test "x$with_jpeg12_lib" != "x" ; then
     LIBS="$with_jpeg12_lib $LIBS"
@@ -840,17 +898,28 @@ dnl this must be after the ogl test, since that looks for windows.h and we
 dnl test it
 dnl ---------------------------------------------------------------------------
 
+AC_ARG_ENABLE(win32-io,
+	      AS_HELP_STRING([--disable-win32-io],
+			     [disable Win32 I/O (Windows only, enabled by default except for Cygwin)]),,)
+
 win32_io_ok=no
 case "${host_os}" in
     cygwin*)
+        if test x"$ac_cv_header_windows_h" = xyes -a "x$enable_win32_io" = xyes ; then 
+            win32_io_ok=yes
+	fi
         ;;
     *)
-        if test x"$ac_cv_header_windows_h" = xyes; then 
+        if test x"$ac_cv_header_windows_h" = xyes -a ! "x$enable_win32_io" = xno ; then 
             win32_io_ok=yes
-	    AC_DEFINE(USE_WIN32_FILEIO,1,[define to use win32 IO system])
 	fi
         ;;
 esac
+
+if test "$win32_io_ok" = "yes" ; then
+    AC_DEFINE(USE_WIN32_FILEIO,1,[define to use win32 IO system])
+fi
+
 AM_CONDITIONAL([WIN32_IO], [test "$win32_io_ok" = yes])
 
 dnl ---------------------------------------------------------------------------
