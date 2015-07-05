@@ -1,4 +1,4 @@
-/* $Id: tiffcrop.c,v 1.25 2014-12-26 16:32:32 bfriesen Exp $ */
+/* $Id: tiffcrop.c,v 1.34 2015-06-21 01:09:10 bfriesen Exp $ */
 
 /* tiffcrop.c -- a port of tiffcp.c extended to include manipulations of
  * the image data through additional options listed below
@@ -178,7 +178,7 @@ extern int getopt(int, char**, char*);
 #define ROTATECW_90   8
 #define ROTATECW_180 16
 #define ROTATECW_270 32
-#define ROTATE_ANY ROTATECW_90 || ROTATECW_180 || ROTATECW_270 
+#define ROTATE_ANY (ROTATECW_90 | ROTATECW_180 | ROTATECW_270)
 
 #define CROP_NONE     0
 #define CROP_MARGINS  1
@@ -938,8 +938,8 @@ static int readContigTilesIntoBuffer (TIFF* in, uint8* buf,
 	    }
           }
         prev_trailing_bits += trailing_bits;
-        if (prev_trailing_bits > 7)
-	  prev_trailing_bits-= 8;
+        /* if (prev_trailing_bits > 7) */
+	/*   prev_trailing_bits-= 8; */
 	}
       }
     }
@@ -1541,8 +1541,10 @@ void  process_command_opts (int argc, char *argv[], char *mp, char *mode, uint32
     char *opt_ptr      = NULL;    /* Pointer to next token in option set */
     char *sep          = NULL;    /* Pointer to a token separator */
     unsigned int  i, j, start, end;
+#if !HAVE_DECL_OPTARG
     extern int   optind;
     extern char* optarg;
+#endif
 
     *mp++ = 'w';
     *mp = '\0';
@@ -1569,7 +1571,7 @@ void  process_command_opts (int argc, char *argv[], char *mp, char *mode, uint32
 		  }
 	        *dirnum = start - 1;
 		break;
-      case 'e': switch (tolower(optarg[0])) /* image export modes*/
+      case 'e': switch (tolower((int) optarg[0])) /* image export modes*/
                   {
 		  case 'c': crop_data->exp_mode = ONE_FILE_COMPOSITE;
  		            crop_data->img_mode = COMPOSITE_IMAGES;
@@ -1692,14 +1694,14 @@ void  process_command_opts (int argc, char *argv[], char *mp, char *mode, uint32
                     /* convert option to lowercase */
                     end = strlen (opt_ptr);
                     for (i = 0; i < end; i++)
-                      *(opt_ptr + i) = tolower(*(opt_ptr + i));
+                      *(opt_ptr + i) = tolower((int) *(opt_ptr + i));
                     /* Look for dump format specification */
                     if (strncmp(opt_ptr, "for", 3) == 0)
                       {
 		      /* convert value to lowercase */
                       end = strlen (opt_offset + 1);
                       for (i = 1; i <= end; i++)
-                        *(opt_offset + i) = tolower(*(opt_offset + i));
+                        *(opt_offset + i) = tolower((int) *(opt_offset + i));
                       /* check dump format value */
 		      if (strncmp (opt_offset + 1, "txt", 3) == 0)
                         {
@@ -1766,7 +1768,7 @@ void  process_command_opts (int argc, char *argv[], char *mp, char *mode, uint32
                     }
 		break;
       case 'E':	/* edge reference */
-		switch (tolower(optarg[0]))
+		switch (tolower((int) optarg[0]))
                   {
 		  case 't': crop_data->edge_ref = EDGE_TOP;
                             break;
@@ -1783,7 +1785,7 @@ void  process_command_opts (int argc, char *argv[], char *mp, char *mode, uint32
 		break;
       case 'F': /* flip eg mirror image or cropped segment, M was already used */
 		crop_data->crop_mode |= CROP_MIRROR;
-		switch (tolower(optarg[0]))
+		switch (tolower((int) optarg[0]))
                   {
 		  case  'h': crop_data->mirror = MIRROR_HORIZ;
                              break;
@@ -1889,7 +1891,7 @@ void  process_command_opts (int argc, char *argv[], char *mp, char *mode, uint32
                 *image_count = i;
 		break;
       case 'O': /* page orientation */ 
-		switch (tolower(optarg[0]))
+		switch (tolower((int) optarg[0]))
                   {
 		  case  'a': page->orient = ORIENTATION_AUTO;
                              break;
@@ -2108,7 +2110,10 @@ update_output_file (TIFF **tiffout, char *mode, int autoindex,
 int
 main(int argc, char* argv[])
   {
+
+#if !HAVE_DECL_OPTARG
   extern int optind;
+#endif
   uint16 defconfig = (uint16) -1;
   uint16 deffillorder = 0;
   uint32 deftilewidth = (uint32) 0;
@@ -3599,34 +3604,38 @@ extractContigSamplesToTileBuffer(uint8 *out, uint8 *in, uint32 rows, uint32 cols
   } /* end extractContigSamplesToTileBuffer */
 
 static int readContigStripsIntoBuffer (TIFF* in, uint8* buf)
-  {
-  uint8* bufp = buf;
-  int32  bytes_read = 0;
-  uint16 strip, nstrips   = TIFFNumberOfStrips(in);
-  uint32 stripsize = TIFFStripSize(in);
-  uint32 rows = 0;
-  uint32 rps = TIFFGetFieldDefaulted(in, TIFFTAG_ROWSPERSTRIP, &rps);
-  tsize_t scanline_size = TIFFScanlineSize(in);
+{
+        uint8* bufp = buf;
+        int32  bytes_read = 0;
+        uint16 strip, nstrips   = TIFFNumberOfStrips(in);
+        uint32 stripsize = TIFFStripSize(in);
+        uint32 rows = 0;
+        uint32 rps = TIFFGetFieldDefaulted(in, TIFFTAG_ROWSPERSTRIP, &rps);
+        tsize_t scanline_size = TIFFScanlineSize(in);
 
-  for (strip = 0; strip < nstrips; strip++)
-    {
-    bytes_read = TIFFReadEncodedStrip (in, strip, bufp, -1);
-    rows = bytes_read / scanline_size;
-    if ((strip < (nstrips - 1)) && (bytes_read != (int32)stripsize))
-      TIFFError("", "Strip %d: read %lu bytes, strip size %lu",
-		(int)strip + 1, (unsigned long) bytes_read, (unsigned long)stripsize);
+        if (scanline_size == 0) {
+                TIFFError("", "TIFF scanline size is zero!");    
+                return 0;
+        }
 
-    if (bytes_read < 0 && !ignore)
-      {
-      TIFFError("", "Error reading strip %lu after %lu rows",
-		(unsigned long) strip, (unsigned long)rows);
-      return 0;
-      }
-    bufp += bytes_read;
-    }
+        for (strip = 0; strip < nstrips; strip++) {
+                bytes_read = TIFFReadEncodedStrip (in, strip, bufp, -1);
+                rows = bytes_read / scanline_size;
+                if ((strip < (nstrips - 1)) && (bytes_read != (int32)stripsize))
+                        TIFFError("", "Strip %d: read %lu bytes, strip size %lu",
+                                  (int)strip + 1, (unsigned long) bytes_read,
+                                  (unsigned long)stripsize);
 
- return 1;
-  } /* end readContigStripsIntoBuffer */
+                if (bytes_read < 0 && !ignore) {
+                        TIFFError("", "Error reading strip %lu after %lu rows",
+                                  (unsigned long) strip, (unsigned long)rows);
+                        return 0;
+                }
+                bufp += bytes_read;
+        }
+
+        return 1;
+} /* end readContigStripsIntoBuffer */
 
 static int 
 combineSeparateSamplesBytes (unsigned char *srcbuffs[], unsigned char *out,
@@ -6009,7 +6018,7 @@ loadImage(TIFF* in, struct image_data *image, struct dump_opts *dump, unsigned c
     {
     if (prev_readsize < buffsize)
       {
-      new_buff = _TIFFrealloc(read_buff, buffsize);
+      new_buff = _TIFFrealloc(read_buff, buffsize+3);
       if (!new_buff)
         {
 	free (read_buff);
@@ -6019,15 +6028,15 @@ loadImage(TIFF* in, struct image_data *image, struct dump_opts *dump, unsigned c
         read_buff = new_buff;
       }
     }
-  read_buff[buffsize] = 0;
-  read_buff[buffsize+1] = 0;
-  read_buff[buffsize+2] = 0;
-
   if (!read_buff)
     {
     TIFFError("loadImage", "Unable to allocate/reallocate read buffer");
     return (-1);
     }
+
+  read_buff[buffsize] = 0;
+  read_buff[buffsize+1] = 0;
+  read_buff[buffsize+2] = 0;
 
   prev_readsize = buffsize;
   *read_ptr = read_buff;
@@ -6959,7 +6968,7 @@ writeSingleSection(TIFF *in, TIFF *out, struct image_data *image,
       TIFFSetField(out, TIFFTAG_COMPRESSION, COMPRESSION_JPEG);
       }
     else /* Use the compression from the input file */
-      TIFFSetField(out, TIFFTAG_COMPRESSION, compression);
+      CopyField(TIFFTAG_COMPRESSION, compression);
     }
 
   if (compression == COMPRESSION_JPEG)
@@ -7106,14 +7115,15 @@ writeSingleSection(TIFF *in, TIFF *out, struct image_data *image,
 	    TIFFSetField(out, TIFFTAG_GROUP3OPTIONS, g3opts);
 	  else
 	    CopyField(TIFFTAG_GROUP3OPTIONS, g3opts);
-	} else
+	} else {
 	    CopyTag(TIFFTAG_GROUP4OPTIONS, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_BADFAXLINES, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_CLEANFAXDATA, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_CONSECUTIVEBADFAXLINES, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_FAXRECVPARAMS, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_FAXRECVTIME, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_FAXSUBADDRESS, 1, TIFF_ASCII);
+        }
+        CopyTag(TIFFTAG_BADFAXLINES, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_CLEANFAXDATA, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_CONSECUTIVEBADFAXLINES, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_FAXRECVPARAMS, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_FAXRECVTIME, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_FAXSUBADDRESS, 1, TIFF_ASCII);
 	break;
    }
    { uint32 len32;
@@ -7782,15 +7792,16 @@ writeCroppedImage(TIFF *in, TIFF *out, struct image_data *image,
 	    TIFFSetField(out, TIFFTAG_GROUP3OPTIONS, g3opts);
 	  else
 	    CopyField(TIFFTAG_GROUP3OPTIONS, g3opts);
-	} else
+	} else {
 	    CopyTag(TIFFTAG_GROUP4OPTIONS, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_BADFAXLINES, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_CLEANFAXDATA, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_CONSECUTIVEBADFAXLINES, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_FAXRECVPARAMS, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_FAXRECVTIME, 1, TIFF_LONG);
-	    CopyTag(TIFFTAG_FAXSUBADDRESS, 1, TIFF_ASCII);
-	 break;
+        }
+        CopyTag(TIFFTAG_BADFAXLINES, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_CLEANFAXDATA, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_CONSECUTIVEBADFAXLINES, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_FAXRECVPARAMS, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_FAXRECVTIME, 1, TIFF_LONG);
+        CopyTag(TIFFTAG_FAXSUBADDRESS, 1, TIFF_ASCII);
+        break;
     case COMPRESSION_NONE:
          break;
     default: break;
